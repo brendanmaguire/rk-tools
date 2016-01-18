@@ -1,0 +1,33 @@
+#!/usr/bin/env python
+
+import argh
+import json
+import requests
+
+
+_RUNKEEPER_API_URL_TEMPLATE = 'https://api.runkeeper.com/%s'
+
+
+def upload_activity(activity, rk_token):
+    rk_api_url = _RUNKEEPER_API_URL_TEMPLATE % 'fitnessActivities'
+    r = requests.post(
+        rk_api_url, data=json.dumps(activity), headers=_get_headers(rk_token))
+    r.raise_for_status()
+
+
+def _get_headers(rk_token):
+    return {
+        'Authorization': 'Bearer %s' % rk_token,
+        'Accept': 'application/*',
+        'content-type': 'application/vnd.com.runkeeper.NewFitnessActivity+json'}
+
+
+def main(activity_file_path, rk_token):
+    """
+    Upload the Runkeeper activity file using the client's app token
+    """
+    upload_activity(json.load(open(activity_file_path, 'r')), rk_token)
+
+
+if __name__ == '__main__':
+    argh.dispatch_command(main)

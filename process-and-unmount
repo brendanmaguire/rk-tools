@@ -1,0 +1,42 @@
+#!/bin/bash
+
+set -eux
+
+CONF_FOLDER="$HOME/.config/rk-tools/"
+source "$CONF_FOLDER/client.conf"
+
+GARMIN_ACTIVITIES_FOLDER="$GARMIN_DEVICE/Garmin/Activities"
+
+LOCK_FILE="/tmp/rk.lock"
+
+BS_BRIGHTNESS=75
+
+IN_PROGRESS_COLOR=blue
+SUCCESS_COLOR=green
+FAIL_COLOR=red
+
+
+blinkstick() {
+    /opt/kamikaze/bin/python -m kamikaze $@
+}
+
+cleanup() {
+    rm $LOCK_FILE
+}
+
+if [ -f $LOCK_FILE ]; then
+    echo "Another process has the lock"
+    exit 1
+fi
+
+ls $GARMIN_ACTIVITIES_FOLDER/*
+# If we managed to list something then there's something to be converted
+
+touch $LOCK_FILE
+blinkstick push $IN_PROGRESS_COLOR 60 2
+
+$RK_TOOLS/convert-and-upload || ((blinkstick push $FAIL_COLOR 300 1) && cleanup && exit 1)
+
+blinkstick push $SUCCESS_COLOR 300 1
+cleanup
+sudo umount $GARMIN_DEVICE

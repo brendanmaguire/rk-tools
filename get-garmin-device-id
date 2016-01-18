@@ -1,0 +1,25 @@
+#!/usr/bin/env python
+
+import os
+
+import argh
+import untangle
+
+
+def main(device_location):
+    """
+    Get the Garmin Device ID of the device mounted at device_location
+    """
+    garmin_device_file = os.path.join(
+        device_location, 'Garmin/GarminDevice.xml')
+
+    if not os.path.exists(garmin_device_file):
+        raise IOError(
+            'There is no garmin device file at %s' % garmin_device_file)
+
+    resource =untangle.parse(garmin_device_file)
+    return resource.Device.Id.cdata
+
+
+if __name__ == '__main__':
+    argh.dispatch_command(main)

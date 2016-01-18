@@ -1,0 +1,30 @@
+#!/bin/bash
+
+# Use this script for transforming tcx to rk files and then uploading them to
+# runkeeper
+
+set -eu
+
+CONF_FOLDER="$HOME/.config/rk-tools/"
+source "$CONF_FOLDER/client.conf"
+
+GARMIN_ACTIVITIES_FOLDER="$GARMIN_DEVICE/Garmin/Activities"
+DEVICE_ID=`$RK_TOOLS/get-garmin-device-id "$GARMIN_DEVICE"`
+
+eval `$RK_TOOLS/user-profile-env "$CONF_FOLDER/users.yaml" $DEVICE_ID`
+
+# Late evaluation of these variable as the can contain the username of the owner of the device
+TCX_FILES="`eval echo $TCX_FILES`" && mkdir -p $TCX_FILES
+RK_FILES="`eval echo $RK_FILES`" && mkdir -p $RK_FILES
+FIT_FILES="`eval echo $FIT_FILES`" && mkdir -p $FIT_FILES
+
+ls $GARMIN_ACTIVITIES_FOLDER | xargs -P 4 -n 1 -t -i fit2tcx -i $GARMIN_ACTIVITIES_FOLDER/{} -o $TCX_FILES/{}.tcx
+
+ls $TCX_FILES | xargs -P 4 -n 1 -t -i tcx2rk $TCX_FILES/{} $RK_FILES/{}.json --detect-pauses
+
+find $RK_FILES -type f | xargs -P 10 -n 1 -t -i python $RK_TOOLS/rk-uploader {} $RK_TOKEN
+
+echo "Cleaning up files"
+sudo mv $GARMIN_ACTIVITIES_FOLDER/* $FIT_FILES
+/bin/rm $TCX_FILES/*
+/bin/rm $RK_FILES/*

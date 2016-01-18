@@ -1,0 +1,97 @@
+#!/usr/bin/env python
+import os
+
+import argh
+
+from BaseHTTPServer import (
+    BaseHTTPRequestHandler,
+    HTTPServer,
+)
+
+DEFAULT_PORT = 8000
+
+
+def handler_creator(client_id, client_secret, port):
+    class MyRequestHandler(BaseHTTPRequestHandler):
+
+        def do_GET(self):
+            self.send_response(200)
+            self.send_header('Content-type', 'text/html')
+            self.end_headers()
+
+            if self.path == '/favicon.ico':
+                return
+
+            try:
+                code = self.path.split('code=')[1]
+                self.wfile.write("""
+<html>
+    <body>
+        <form action="https://runkeeper.com/apps/token" method="post">
+            <label for="client_id">client_id</label>
+            <input name="client_id" value="%(client_id)s">
+            <br>
+            <label for="client_secret">client_secret</label>
+            <input name="client_secret" value="%(client_secret)s">
+            <br>
+            <label for="code">code</label>
+            <input name="code" value="%(code)s">
+            <br>
+            <label for="grant_type">grant_type</label>
+            <input name="grant_type" value="authorization_code">
+            <br>
+            <label for="redirect_uri">redirect_uri</label>
+            <input name="redirect_uri" value="http://127.0.0.1:%(port)s">
+            <br>
+            <button>Request Token</button>
+        </form>
+    </body>
+</html>
+                """ % {
+                    'client_id': client_id, 'client_secret': client_secret,
+                    'code': code, 'port': port
+                })
+            except Exception as e:
+                self.wfile.write('An exception occurred: %s' % e)
+                raise e
+
+    return MyRequestHandler
+
+
+def main(client_id=os.environ.get('RK_CLIENT_ID'),
+         client_secret=os.environ.get('RK_CLIENT_SECRET'),
+         port=DEFAULT_PORT):
+    """
+    Workflow to get a Runkeeper App token with the app's client id and secret
+
+    The credentials can either be supplied from the command line or via
+    environment variables, RK_CLIENT_ID & RK_CLIENT_SECRET
+    """
+
+    if client_id is None or client_secret is None:
+        raise argh.CommandError(
+            'Either the env variables RK_CLIENT_ID and RK_CLIENT_SECRET must '
+            'be set, or the variables must be passed to this tool')
+
+    try:
+        server = HTTPServer(
+            ('', port), handler_creator(client_id, client_secret, port))
+
+        print """
+Open this link in your browser:
+https://runkeeper.com/apps/authorize?client_id=%(client_id)s\
+&response_type=code&redirect_uri=http://127.0.0.1:%(port)s
+
+Allow the application and make the token request. When you get
+the access token copy it to the config file)
+Press Ctrl-C when you have completed the registration process
+        """ % {'client_id': client_id, 'port': port}
+
+        server.serve_forever()
+
+    except KeyboardInterrupt:
+        server.socket.close()
+
+
+if __name__ == '__main__':
+    argh.dispatch_command(main)

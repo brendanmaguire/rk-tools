@@ -1,0 +1,5 @@
+PyYAML==3.11
+argh==0.24.1
+requests==2.9.1
+tcx2rk==0.1.2
+untangle==1.1.0
